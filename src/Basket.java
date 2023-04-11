@@ -2,15 +2,18 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Scanner;
 
+public class Basket implements Serializable {
+    private static final long serialVersionUID = 1L;
+    protected String products[];
+    protected int prices[];
+    protected int basket[];
 
-public class Basket {
+    public Basket() {
+    }
 
-    protected String[] products;
-    protected int[] prices;
-    protected int[] basket;
-    protected File file = new File("basket.txt");
 
     public Basket (String[] products, int[] prices) {
         this.products = new String[]{"Мандарины ", "Яблоки ", "Груши ", "Хлеб ", "Молоко "};
@@ -41,10 +44,8 @@ public class Basket {
         }
         System.out.println("Сумма вашей корзины : " + sumPurchase);
     }
-    public File getFile() {
-        return file;
-    }
-    public void saveTxt(File textFile) throws IOException {
+
+    public void saveTxt(File textFile) throws FileNotFoundException {
         try (PrintWriter writer = new PrintWriter(textFile)) {
             for (String product : products) {
                 writer.print(product + " ");
@@ -59,29 +60,47 @@ public class Basket {
             }
         }
     }
-    public static Basket loadFromTxtFile(File textFile) throws Exception {
-        try (InputStream ins = new FileInputStream(textFile)) {
-            Scanner scanner = new Scanner(ins);
-            String[] products = scanner.nextLine().trim().split(" ");
-            String[] pricesI = scanner.nextLine().trim().split(" ");
-            int[] prices = new int[pricesI.length];
-            for (int i = 0; i < pricesI.length; i++) {
-                prices[i] = Integer.parseInt(pricesI[i]);
-            }
-            String[] basketI = scanner.nextLine().trim().split(" ");
-            int[] basket = new int[basketI.length];
-            for (int i = 0; i < basketI.length; i++)
-                basket[i] = Integer.parseInt(basketI[i]);
-            return new Basket(products, prices, basket);
+    public static Basket loadFromTxtFile(File textFile) throws FileNotFoundException {
+        Basket basket = new Basket();
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(textFile))) {
+            String productsStr = bufferedReader.readLine();
+            String pricesStr = bufferedReader.readLine();
+            String basketStr = bufferedReader.readLine();
+            basket.products = productsStr.split(" ");
+            basket.prices = Arrays.stream(pricesStr.split(" "))
+                    .map(Integer::parseInt)
+                    .mapToInt(Integer::intValue)
+                    .toArray();
+            basket.basket = Arrays.stream(basketStr.split(" "))
+                    .map(Integer::parseInt)
+                    .mapToInt(Integer::intValue)
+                    .toArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return basket;
+    }
+    public void saveBin(File file) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+            oos.writeObject(this);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
-    @Override
-    public String toString() {
-        System.out.println("Список товаров для покупки: ");
-        for (int i = 0; i < products.length; i++) {
-            System.out.println(" Товар: " + " " + products[i] + prices[i] + " рублей.");
+
+    public static Basket loadFromBinFile(File file) {
+        Basket basket = null;
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            basket = (Basket) ois.readObject();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
         }
-        return " ";
+        return basket;
     }
     public void saveJSON(File file)  {
         try (PrintWriter writer= new PrintWriter(file)) {
@@ -95,7 +114,7 @@ public class Basket {
     }
 
     public static Basket loadFromJSONFile(File file){
-        Basket basket = null;
+        Basket basket ;
         try (BufferedReader reader= new BufferedReader(new FileReader(file))) {
             StringBuilder builder = new StringBuilder();
             String line =null;
